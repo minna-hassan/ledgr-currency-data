@@ -1,3 +1,4 @@
+
 {
   "schemaVersion": 1,
   "status": "not_initialized",
@@ -6,5 +7,5 @@
   "fetchedAt": null,
   "source": null,
   "rates": {},
-  "note": "Placeholder only. No provider is configured yet."
+  "note": "Placeholder only. Waiting for the first successful, validated ExchangeRate-API update."
 }

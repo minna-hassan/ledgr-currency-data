@@ -1,27 +1,25 @@
+
 # LEDGR Currency Data
 
-A provider-neutral daily exchange-rate pipeline for LEDGR's multi-currency
-personal-finance app.
+Automated exchange-rate data infrastructure for LEDGR, a multi-currency
+personal finance and budgeting application built with Flutter.
 
-## Current status
+## Overview
 
-**Not production-ready yet.** The provider fetcher intentionally fails until
-a source has been selected and its terms have been checked for LEDGR's use.
-The included `data/rates.json` is only a placeholder, not live rate data.
+This repository maintains a normalized snapshot of exchange rates using
+ExchangeRate-API and GitHub Actions.
 
-## Design
+The intended pipeline is:
 
-```text
-Approved FX provider
-        ↓
-GitHub Actions (scheduled daily or manual)
-        ↓
-Fetch → validate → update data/rates.json
-        ↓
-Flutter app → validate snapshot → Hive cache
-```
+1. Fetch the provider's latest USD-based exchange rates.
+2. Validate the response and reject malformed or stale data.
+3. Publish the validated snapshot as `data/rates.json`.
+4. Allow the LEDGR Flutter app to download the snapshot and cache it locally
+   using Hive.
 
-## Snapshot contract
+## Data format
+
+The snapshot uses this structure:
 
 ```json
 {
@@ -30,7 +28,7 @@ Flutter app → validate snapshot → Hive cache
   "base": "USD",
   "date": "YYYY-MM-DD",
   "fetchedAt": "YYYY-MM-DDTHH:MM:SSZ",
-  "source": "provider-name",
+  "source": "ExchangeRate-API",
   "rates": {
     "USD": 1,
     "PKR": 280.5,
@@ -39,29 +37,58 @@ Flutter app → validate snapshot → Hive cache
 }
 ```
 
-Rates mean **units of each currency per 1 USD**. Conversion from currency A
-to currency B is `amountA / rates[A] * rates[B]`. The base USD rate is 1.
+The values above are illustrative only, not live exchange rates.
 
-## Money integrity rules
+Each entry in `rates` represents the number of units of that currency
+equivalent to one unit of the base currency, USD.
 
-- Store every amount with its ISO 4217 currency code, such as `{ amount: 3000, currencyCode: "PKR" }`.
-- Symbols are for display only; never use `$`, `₨`, or another symbol as identity.
-- Rate updates must never rewrite original transaction amounts.
-- The app should retain the last valid local snapshot when network refresh fails.
-- The UI should show the snapshot date and warn when rates become stale.
-- Do not treat indicative conversion rates as guaranteed bank/card settlement rates.
+For a conversion from currency A to currency B:
 
-## Workflow
+`amountB = amountA / rates[A] * rates[B]`
 
-The GitHub Action is scheduled daily at 05:17 UTC and supports manual runs.
-It commits only when `data/rates.json` changes. The current fetch step exits
-with an error by design, so it cannot publish invented or unapproved data.
+## Currency integrity
 
-## Before production
+- Use ISO 4217 currency codes such as `PKR`, `USD`, and `EUR` as currency
+  identifiers.
+- Never identify a currency by its symbol alone. The `$` symbol, for
+  example, is used by multiple currencies.
+- Preserve original transaction amounts and their currency codes.
+- Exchange-rate updates must not rewrite historical transactions.
+- Display symbols and decimal precision using currency metadata, not rates.
 
-1. Choose a provider and confirm its current terms permit the intended use.
-2. Implement its adapter in `scripts/fetch_rates.py`.
-3. Add tests for malformed data, missing currencies, stale dates, and implausible jumps.
-4. Validate the public raw-file access pattern and GitHub usage limits.
-5. Add app-side schema, age, and numerical validation.
-6. Do not put provider secrets or personal credentials in this repository.
+## Automation
+
+GitHub Actions is configured to run daily and supports manual execution.
+
+The API key is supplied through the `EXCHANGERATE_API_KEY` repository secret.
+Never commit API keys or other credentials.
+
+The workflow must validate a snapshot before committing it. If fetching or
+validation fails, the previous committed snapshot should remain unchanged.
+
+## Offline behavior
+
+The Flutter application should:
+
+- Validate downloaded snapshots before caching them.
+- Keep the last known-good snapshot in Hive.
+- Continue using cached rates when offline.
+- Display the rate date and warn when data is stale.
+- Show a clear error if no valid snapshot is available.
+
+## Important limitations
+
+Exchange rates are indicative reference values. A bank, card issuer, payment
+provider, or cash exchange service may apply different rates and fees.
+
+The repository is not a real-time trading feed and does not guarantee
+transaction settlement rates.
+
+Provider coverage, update frequency, licensing, and redistribution rights
+must be checked against the applicable ExchangeRate-API plan and terms.
+
+## Repository status
+
+The repository and automation are being configured. The initial
+`data/rates.json` file is a placeholder until a successful, validated provider
+update is completed.

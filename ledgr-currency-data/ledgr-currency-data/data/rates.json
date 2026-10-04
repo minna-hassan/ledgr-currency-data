@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "status": "not_initialized",
+  "base": "USD",
+  "date": null,
+  "fetchedAt": null,
+  "source": null,
+  "rates": {},
+  "note": "Placeholder only. No provider is configured yet."
+}
